@@ -1,0 +1,44 @@
+name: Deploy to ECS
+
+on:
+  push:
+    branches:
+      - main
+
+
+jobs:
+  deploy:
+    run-on: ubuntu-latest
+
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-key-id: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        users: aws-actions/amazon-ecr-login@v1
+
+
+      - name: Build, tag, and push Docker image
+        run: |
+          docker build -t my-microservice .
+          docker tag my-microservice:latest ${{ steps.login-ecr.outputs.registry }}/my-microserive:latest
+          docker push ${{ steps.login-ecr.outputs.registry }}/my-microservice:latest
+
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+              --cluster-MyCluster \
+              --service MyService \
+              --force-new-deployment
